@@ -49,4 +49,14 @@ public class OAuthFactoryConstants {
 		public static final int PROVIDER_TWITTER = 102;
 	}
 	
+	/**
+	 * Class that holds the OAuth defaults
+	 * @author Vinay S Shenoy, Nov 8 2012
+	 *
+	 */
+	static class OAuthDefaults {
+		
+		static final String DEFAULT_OAUTH_PROVIDER_CALLBACK_URL = "http://callbackurl.com/";
+	}
+	
 }
