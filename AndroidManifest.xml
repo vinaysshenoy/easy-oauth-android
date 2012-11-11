@@ -13,7 +13,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".WebActivity"
+            android:name=".WebActivityth.WebActivity"
             android:label="@string/title_activity_web" 
             android:theme="@android:style/Theme.NoTitleBar">
         </activity>

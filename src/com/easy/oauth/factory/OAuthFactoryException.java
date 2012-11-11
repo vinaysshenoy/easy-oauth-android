@@ -1,4 +1,4 @@
-package com.network.oauth.provider.factory;
+package com.easy.oauth.factory;
 
 public class OAuthFactoryException extends Exception {
 

@@ -1,12 +1,12 @@
-package com.network.oauth.provider.factory;
+package com.easy.oauth.factory;
 
 import oauth.signpost.commonshttp.CommonsHttpOAuthConsumer;
 import oauth.signpost.commonshttp.CommonsHttpOAuthProvider;
 
 import android.content.Context;
 
-import com.network.oauth.provider.factory.OAuthFactoryConstants.OAuthDefaults;
-import com.network.oauth.provider.factory.OAuthFactoryConstants.OAuthProviderTypes;
+import com.easy.oauth.factory.OAuthFactoryConstants.OAuthDefaults;
+import com.easy.oauth.factory.OAuthFactoryConstants.OAuthProviderTypes;
 
 /**
  * Class for generating OAuthFactory of a particular type

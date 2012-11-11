@@ -1,4 +1,4 @@
-package com.network.oauth.provider.factory;
+package com.easy.oauth.factory;
 
 /**
  * Class that holds some OAuth Constants

@@ -1,4 +1,6 @@
-package com.network.oauth.provider;
+package com.easy.oauth;
+
+import com.network.oauth.provider.R;
 
 import android.os.Bundle;
 import android.app.Activity;
