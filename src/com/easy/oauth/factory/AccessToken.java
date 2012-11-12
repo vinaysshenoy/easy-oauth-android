@@ -24,25 +24,22 @@ public class AccessToken {
 		this.tokenSecret = tokenSecret;
 	}
 
-	/**
-	 * Get the OAuth token
-	 * @return OAuth token, null if not authenticated
-	 */
 	public String getToken() {
 		
 		return token;
 	}
 
-	/**
-	 * Get the OAuth token secret
-	 * @return OAuth token secret, null if 
-	 * not authenticated or OAuth 2.0
-	 */
 	public String getTokenSecret() {
 		
 		return tokenSecret;
 	}
-	
 
+	void setToken(String token) {
+		this.token = token;
+	}
+
+	void setTokenSecret(String tokenSecret) {
+		this.tokenSecret = tokenSecret;
+	}
 
 }

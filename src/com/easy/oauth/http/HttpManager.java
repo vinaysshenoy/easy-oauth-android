@@ -27,7 +27,7 @@ import org.apache.http.params.HttpProtocolParams;
  * @author Vinay S Shenoy, Nov 11 2012
  *
  */
-class HttpManager {
+public class HttpManager {
 
 	/**
 	 * Debug tag
@@ -139,6 +139,5 @@ class HttpManager {
 		return null;
 
 	}
-	
 
 }

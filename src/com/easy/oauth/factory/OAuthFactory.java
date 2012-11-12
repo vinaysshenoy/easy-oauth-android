@@ -1,12 +1,29 @@
 package com.easy.oauth.factory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Iterator;
+import java.util.Set;
+
+import org.apache.http.HttpConnection;
+import org.apache.http.HttpRequest;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpRequestBase;
+
 import oauth.signpost.commonshttp.CommonsHttpOAuthConsumer;
 import oauth.signpost.commonshttp.CommonsHttpOAuthProvider;
-
+import oauth.signpost.exception.OAuthCommunicationException;
+import oauth.signpost.exception.OAuthExpectationFailedException;
+import oauth.signpost.exception.OAuthMessageSignerException;
+import oauth.signpost.exception.OAuthNotAuthorizedException;
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.util.Log;
 
-import com.easy.oauth.factory.OAuthFactoryConstants.OAuthDefaults;
-import com.easy.oauth.factory.OAuthFactoryConstants.OAuthProviderTypes;
+import com.easy.oauth.WebActivity;
+import com.easy.oauth.http.HttpManager;
 
 /**
  * Class for generating OAuthFactory of a particular type
@@ -15,6 +32,22 @@ import com.easy.oauth.factory.OAuthFactoryConstants.OAuthProviderTypes;
  * 
  */
 public class OAuthFactory {
+
+	private static final String TAG = OAuthFactory.class.getCanonicalName();
+
+	/**
+	 * Result code for successful authorization
+	 */
+	public static final int RESULT_CODE_SUCCESS = 501;
+
+	/**
+	 * Result code for unsuccessful authorization
+	 */
+	public static final int RESULT_CODE_FAILURE = 502;
+
+	public static final int HTTP_GET = 601;
+
+	public static final int HTTP_POST = 602;
 
 	/**
 	 * Consumer key
@@ -27,10 +60,9 @@ public class OAuthFactory {
 	private String consumerSecret;
 
 	/**
-	 * One of the OAUTH_TYPE constants defined in OAuthTypes. Used to determine
-	 * The request methods signing methodology
+	 * OAuth Config
 	 */
-	private int oauthType;
+	private OAuthConfig oAuthConfig;
 
 	/**
 	 * One of the PROVIDER constants. Use PROVIDER_CUSTOM to define your own,
@@ -39,133 +71,245 @@ public class OAuthFactory {
 	private int oauthProviderType;
 
 	/**
-	 * Endpoint for fetching request tokens
-	 */
-	private String requestTokenEndpointUrl;
-
-	/**
-	 * Endpoint for fetching access tokens
-	 */
-	private String accessTokenEndpointUrl;
-
-	/**
-	 * Endpoint for authorizing the user
-	 */
-	private String authorizationWebsiteUrl;
-
-	/**
-	 * Callback Url
-	 */
-	private String callbackUrl;
-
-	/**
 	 * OAuth Provider
 	 */
-	private CommonsHttpOAuthProvider oAuthProvider = null;
+	private CommonsHttpOAuthProvider oAuthProvider;
 
 	/**
 	 * OAuth Consumer
 	 */
-	private CommonsHttpOAuthConsumer oAuthConsumer = null;
-	
+	private CommonsHttpOAuthConsumer oAuthConsumer;
+
 	/**
-	 * Context
+	 * Activity
 	 */
-	private Context context;
-	
+	private Activity activity;
+
+	/**
+	 * HttpManager for making Http Requests
+	 */
+	private HttpManager httpManager;
+
 	/**
 	 * Access Token
 	 */
-	private AccessToken accessToken = null;
+	private AccessToken accessToken;
 
-	/**
-	 * @param consumerKey OAuth App Consumer Key
-	 * @param consumerSecret OAuth App Consumer Secret
-	 * @param oauthType One of the OAUTH_TYPE constants defined in OAuthTypes
-	 * @param oauthProviderType One of the PROVIDER constants. Use PROVIDER_CUSTOM to define your own, One of the others to automatically configure it for you
-	 * @param context Activity context
-	 * @throws OAuthFactoryException
-	 */
-	public OAuthFactory(String consumerKey, String consumerSecret, int oauthType, int oauthProviderType, Context context) throws OAuthFactoryException {
+	public OAuthFactory(Activity activity, String consumerKey,
+			String consumerSecret, int oauthProviderType,
+			OAuthConfig oAuthConfig) throws OAuthFactoryException,
+			NullPointerException {
 
-		this.context = context;
+		this.activity = activity;
 		this.consumerKey = consumerKey;
 		this.consumerSecret = consumerSecret;
-		this.oauthType = oauthType;
 		this.oauthProviderType = oauthProviderType;
-		
-		oAuthConsumer = new CommonsHttpOAuthConsumer(consumerKey, consumerSecret);
-		setOAuthProviderType(oauthProviderType);
-		setCallbackUrl(null);
+		this.oAuthConfig = oAuthConfig;
+
+		// Init objects
+		initOAuthConsumer();
+		initOAuthProvider();
+		initHttpManager();
+	}
+
+	private void initOAuthConsumer() {
+
+		if (consumerKey == null || consumerSecret == null) {
+
+			throw new NullPointerException(
+					OAuthFactoryException.OAuthExceptionMessages.OAUTH_NULL_CONSUMER_KEY_OR_SECRET);
+		}
+
+		oAuthConsumer = new CommonsHttpOAuthConsumer(consumerKey,
+				consumerSecret);
 
 	}
 
-	private void setOAuthProviderType(int providerType)
-			throws OAuthFactoryException {
+	private void initOAuthProvider() throws OAuthFactoryException {
 
-		switch (providerType) {
+		switch (oauthProviderType) {
 
-		case OAuthProviderTypes.PROVIDER_FACEBOOK:
-			// Init with Facebook Urls
+		case OAuthProviders.PROVIDER_CUSTOM:
+
+			if (oAuthConfig == null) {
+				throw new OAuthFactoryException(
+						OAuthFactoryException.OAuthExceptionMessages.OAUTH_MISSING_CONFIG);
+			}
+
 			break;
 
-		case OAuthProviderTypes.PROVIDER_TWITTER:
-			// Init with Twitter Urls
+		case OAuthProviders.PROVIDER_FACEBOOK:
+
+			if (oAuthConfig == null) {
+				// Initialize oAuthConfig with facebook settings
+			}
+
 			break;
 
-		case OAuthProviderTypes.PROVIDER_CUSTOM:
-			// Init other stuff if needed
+		case OAuthProviders.PROVIDER_TWITTER:
+
+			if (oAuthConfig == null) {
+				// Initialize oAuthConfig with twitter settings
+			}
 			break;
 
 		default:
 			throw new OAuthFactoryException(
 					OAuthFactoryException.OAuthExceptionMessages.OAUTH_UNRECOGNIZED_PROVIDER);
 		}
+
+		oAuthProvider = new CommonsHttpOAuthProvider(
+				oAuthConfig.requestTokenEndpointUrl,
+				oAuthConfig.accessTokenEndpointUrl,
+				oAuthConfig.authorizationWebsiteUrl);
+	}
+
+	private void initHttpManager() {
+
+		httpManager = new HttpManager(oAuthConfig.httpConfig);
+	}
+
+	public void authorize(int requestCode) throws OAuthMessageSignerException,
+			OAuthNotAuthorizedException, OAuthExpectationFailedException,
+			OAuthCommunicationException {
+
+		String url = oAuthProvider.retrieveRequestToken(oAuthConsumer,
+				oAuthConfig.callbackUrl, (String) null);
+
+		Intent intent = new Intent(activity, WebActivity.class);
+		intent.putExtra("accesstokenurl", url);
+		intent.putExtra(WebActivity.KEY_CALLBACK, oAuthConfig.callbackUrl);
+		intent.putExtra(WebActivity.KEY_DENIED, "denied");
+		intent.putExtra(WebActivity.KEY_VERIFIER, "oauth_verifier");
+		activity.startActivityForResult(intent, requestCode);
 	}
 
 	/**
-	 * Set callback url
 	 * 
-	 * @param callbackUrl
+	 * @param result
+	 *            If you're using OAuth 1.0a, send the oauth_verifier code you
+	 *            received, for OAuth 2.0. send the access token
+	 * @throws OAuthMessageSignerException
+	 * @throws OAuthNotAuthorizedException
+	 * @throws OAuthExpectationFailedException
+	 * @throws OAuthCommunicationException
 	 */
-	public void setCallbackUrl(String callbackUrl) {
-		
-		if(callbackUrl == null)
-			callbackUrl = OAuthDefaults.DEFAULT_OAUTH_PROVIDER_CALLBACK_URL;
-		else
-			this.callbackUrl = callbackUrl;
+	public void saveAccessToken(String result)
+			throws OAuthMessageSignerException, OAuthNotAuthorizedException,
+			OAuthExpectationFailedException, OAuthCommunicationException {
+
+		switch (oAuthConfig.oAuthType) {
+
+		case OAuthTypes.OAUTH_TYPE_1_0_A:
+			oAuthProvider.retrieveAccessToken(oAuthConsumer, result,
+					(String) null);
+			accessToken = new AccessToken(oAuthConsumer.getToken(),
+					oAuthConsumer.getTokenSecret());
+			break;
+
+		case OAuthTypes.OAUTH_TYPE_2_0:
+			accessToken = new AccessToken(result, null);
+			break;
+
+		}
+
 	}
 
-	public void initOAuthProvider(String requestTokenEndpointUrl,
-			String accessTokenEndpointUrl, String authorizationWebsiteUrl) {
+	public AccessToken getAccessToken() {
 
-		this.requestTokenEndpointUrl = requestTokenEndpointUrl;
-		this.accessTokenEndpointUrl = accessTokenEndpointUrl;
-		this.authorizationWebsiteUrl = authorizationWebsiteUrl;
-
-		oAuthProvider = new CommonsHttpOAuthProvider(requestTokenEndpointUrl,
-				accessTokenEndpointUrl, authorizationWebsiteUrl);
+		return accessToken;
 	}
-	
+
 	/**
-	 * Interface that specifies 
-	 * callback methods
-	 * to be called
-	 * after the OAuth flow 
+	 * Use this to sign an HttpRequest
 	 * 
-	 * @author Vinay S Shenoy, Nov 8 2012
-	 *
+	 * @param request
+	 * @throws OAuthFactoryException
+	 * @throws OAuthCommunicationException
+	 * @throws OAuthExpectationFailedException
+	 * @throws OAuthMessageSignerException
 	 */
-	public static interface OAuthAuthorizationCallback {
-		
-		/**
-		 * Callback method when authorization was unsuccessful
-		 * @param errorCode Error code
-		 * @param message Error message
-		 */
-		public void onOAuthAuthorizationError(int errorCode, String message);
-		
-		public void onOAuthAuthorizationComplete(AccessToken accessToken);
+	public void signHttpRequest(HttpRequestBase request)
+			throws OAuthFactoryException, OAuthMessageSignerException,
+			OAuthExpectationFailedException, OAuthCommunicationException {
+
+		if (accessToken == null) {
+
+			throw new OAuthFactoryException(
+					OAuthFactoryException.OAuthExceptionMessages.OAUTH_NOT_AUTHORIZED);
+		}
+
+		oAuthConsumer.sign(request);
 	}
 
+	public InputStream executeRequestForInputStream(int requestType,
+			String requestUrl, Bundle params) throws OAuthFactoryException,
+			OAuthMessageSignerException, OAuthExpectationFailedException,
+			OAuthCommunicationException, IllegalStateException, IOException {
+
+		if (accessToken == null) {
+
+			throw new OAuthFactoryException(
+					OAuthFactoryException.OAuthExceptionMessages.OAUTH_NOT_AUTHORIZED);
+		}
+
+		HttpRequestBase request = null;
+
+		switch (requestType) {
+
+		case HTTP_GET:
+
+			StringBuilder requestParamsBuilder = new StringBuilder('?');
+			if (params != null && params.size() > 0) {
+
+				Set<String> keySet = params.keySet();
+				Iterator<String> keyIterator = keySet.iterator();
+				String curKey;
+
+				while (keyIterator.hasNext()) {
+
+					curKey = keyIterator.next();
+
+					requestParamsBuilder.append(curKey).append('=')
+							.append(params.get(curKey));
+
+					requestParamsBuilder.append('&');
+
+				}
+			}
+
+			switch (oAuthConfig.oAuthType) {
+
+			case OAuthTypes.OAUTH_TYPE_1_0_A:
+				if (requestParamsBuilder.lastIndexOf("&") != -1)
+					requestParamsBuilder.deleteCharAt(requestParamsBuilder
+							.length() - 1);
+				request = new HttpGet(requestUrl
+						+ requestParamsBuilder.toString());
+				signHttpRequest(request);
+				break;
+
+			case OAuthTypes.OAUTH_TYPE_2_0:
+
+				requestParamsBuilder.append(oAuthConfig.oAuthToken).append('=')
+						.append(accessToken.getToken());
+
+				request = new HttpGet(requestUrl
+						+ requestParamsBuilder.toString());
+				break;
+			}
+
+			break;
+
+		case HTTP_POST:
+			break;
+
+		default:
+			throw new OAuthFactoryException(
+					OAuthFactoryException.OAuthExceptionMessages.UNSUPPORTED_METHOD);
+		}
+
+		Log.d(TAG, "Request:" + request.getURI());
+		return httpManager.executeHttpRequestForStreamResponse(request);
+	}
 }
