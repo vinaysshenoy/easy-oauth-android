@@ -2,13 +2,20 @@ package com.easy.oauth.factory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.http.HttpConnection;
 import org.apache.http.HttpRequest;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.message.BasicNameValuePair;
 
 import oauth.signpost.commonshttp.CommonsHttpOAuthConsumer;
 import oauth.signpost.commonshttp.CommonsHttpOAuthProvider;
@@ -48,6 +55,7 @@ public class OAuthFactory {
 	public static final int HTTP_GET = 601;
 
 	public static final int HTTP_POST = 602;
+	
 
 	/**
 	 * Consumer key
@@ -113,6 +121,9 @@ public class OAuthFactory {
 	}
 
 	private void initOAuthConsumer() {
+		
+		if(oAuthConfig.oAuthType == OAuthTypes.OAUTH_TYPE_2_0)
+			return;
 
 		if (consumerKey == null || consumerSecret == null) {
 
@@ -127,6 +138,9 @@ public class OAuthFactory {
 
 	private void initOAuthProvider() throws OAuthFactoryException {
 
+		if(oAuthConfig.oAuthType == OAuthTypes.OAUTH_TYPE_2_0)
+			return;
+		
 		switch (oauthProviderType) {
 
 		case OAuthProviders.PROVIDER_CUSTOM:
@@ -173,14 +187,40 @@ public class OAuthFactory {
 			OAuthNotAuthorizedException, OAuthExpectationFailedException,
 			OAuthCommunicationException {
 
-		String url = oAuthProvider.retrieveRequestToken(oAuthConsumer,
-				oAuthConfig.callbackUrl, (String) null);
+		String url = null;
+		
+		switch(oAuthConfig.oAuthType) {
+		
+		case OAuthTypes.OAUTH_TYPE_1_0_A:
+			url = oAuthProvider.retrieveRequestToken(oAuthConsumer,
+					oAuthConfig.callbackUrl, (String) null);
+			break;
+			
+		case OAuthTypes.OAUTH_TYPE_2_0:
+			url = oAuthConfig.authorizationWebsiteUrl;
+			
+			StringBuilder urlBuilder = new StringBuilder(url);
+			
+			urlBuilder
+				.append('?')
+				.append(OAuth2AuthParams.PARAM_KEY_CLIENT_ID).append('=').append(consumerKey)
+				.append('&')
+				.append(OAuth2AuthParams.PARAM_KEY_REDIRECT_URI).append('=').append(URLEncoder.encode(oAuthConfig.callbackUrl))
+				.append('&')
+				.append(OAuth2AuthParams.PARAM_KEY_RESPONSE_TYPE).append('=').append(OAuth2AuthParams.PARAM_VALUE_RESPONSE_TYPE);
+				
+			url = urlBuilder.toString();
+			break;
+		}
 
+		Log.d(TAG, "Authorization Url:" + url);
 		Intent intent = new Intent(activity, WebActivity.class);
-		intent.putExtra("accesstokenurl", url);
+		intent.putExtra(WebActivity.KEY_ACCESS_TOKEN_URL, url);
 		intent.putExtra(WebActivity.KEY_CALLBACK, oAuthConfig.callbackUrl);
-		intent.putExtra(WebActivity.KEY_DENIED, "denied");
-		intent.putExtra(WebActivity.KEY_VERIFIER, "oauth_verifier");
+		intent.putExtra(WebActivity.KEY_DENIED, oAuthConfig.oAuthDenied);
+		intent.putExtra(WebActivity.KEY_VERIFIER, oAuthConfig.oAuthVerifier);
+		intent.putExtra(WebActivity.KEY_OAUTH_TOKEN, oAuthConfig.oAuthToken);
+		intent.putExtra(WebActivity.KEY_OAUTH_TYPE, oAuthConfig.oAuthType);
 		activity.startActivityForResult(intent, requestCode);
 	}
 
@@ -212,6 +252,8 @@ public class OAuthFactory {
 			break;
 
 		}
+		
+		Log.d(TAG, "Token:" + accessToken.getToken());
 
 	}
 
@@ -233,7 +275,7 @@ public class OAuthFactory {
 			throws OAuthFactoryException, OAuthMessageSignerException,
 			OAuthExpectationFailedException, OAuthCommunicationException {
 
-		if (accessToken == null) {
+		if (accessToken == null || oAuthConsumer == null) {
 
 			throw new OAuthFactoryException(
 					OAuthFactoryException.OAuthExceptionMessages.OAUTH_NOT_AUTHORIZED);
@@ -253,13 +295,14 @@ public class OAuthFactory {
 					OAuthFactoryException.OAuthExceptionMessages.OAUTH_NOT_AUTHORIZED);
 		}
 
-		HttpRequestBase request = null;
+		StringBuilder requestParamsBuilder;
 
 		switch (requestType) {
 
 		case HTTP_GET:
 
-			StringBuilder requestParamsBuilder = new StringBuilder('?');
+			HttpGet get = null;
+			requestParamsBuilder = new StringBuilder('?');
 			if (params != null && params.size() > 0) {
 
 				Set<String> keySet = params.keySet();
@@ -284,9 +327,9 @@ public class OAuthFactory {
 				if (requestParamsBuilder.lastIndexOf("&") != -1)
 					requestParamsBuilder.deleteCharAt(requestParamsBuilder
 							.length() - 1);
-				request = new HttpGet(requestUrl
+				get = new HttpGet(requestUrl
 						+ requestParamsBuilder.toString());
-				signHttpRequest(request);
+				signHttpRequest(get);
 				break;
 
 			case OAuthTypes.OAUTH_TYPE_2_0:
@@ -294,22 +337,186 @@ public class OAuthFactory {
 				requestParamsBuilder.append(oAuthConfig.oAuthToken).append('=')
 						.append(accessToken.getToken());
 
-				request = new HttpGet(requestUrl
+				get = new HttpGet(requestUrl
 						+ requestParamsBuilder.toString());
 				break;
 			}
+			Log.d(TAG, "Request:" + get.getURI());
+			return httpManager.executeHttpRequestForStreamResponse(get);
 
-			break;
-
+			
 		case HTTP_POST:
-			break;
+			
+			HttpPost post = null;
+			
+			List<NameValuePair> postParams = null;
+			
+			if (params != null && params.size() > 0) {
+
+				Set<String> keySet = params.keySet();
+				Iterator<String> keyIterator = keySet.iterator();
+				String curKey;
+				postParams = new ArrayList<NameValuePair>(params.size());
+
+				while (keyIterator.hasNext()) {
+
+					curKey = keyIterator.next();
+					postParams.add(new BasicNameValuePair(curKey, params.getString(curKey)));
+				}
+			}
+
+			switch (oAuthConfig.oAuthType) {
+
+			case OAuthTypes.OAUTH_TYPE_1_0_A:
+				
+				post = new HttpPost(requestUrl);
+				
+				signHttpRequest(post);
+				break;
+
+			case OAuthTypes.OAUTH_TYPE_2_0:
+
+				requestParamsBuilder = new StringBuilder('?');
+				requestParamsBuilder.append(oAuthConfig.oAuthToken).append('=')
+						.append(accessToken.getToken());
+
+				post = new HttpPost(requestUrl
+						+ requestParamsBuilder.toString());
+				
+				break;
+			}
+			
+			post.setEntity(new UrlEncodedFormEntity(postParams));
+			return httpManager.executeHttpRequestForStreamResponse(post);
 
 		default:
 			throw new OAuthFactoryException(
 					OAuthFactoryException.OAuthExceptionMessages.UNSUPPORTED_METHOD);
 		}
 
-		Log.d(TAG, "Request:" + request.getURI());
-		return httpManager.executeHttpRequestForStreamResponse(request);
+		
+	}
+	
+	public String executeRequestForString(int requestType,
+			String requestUrl, Bundle params) throws OAuthFactoryException,
+			OAuthMessageSignerException, OAuthExpectationFailedException,
+			OAuthCommunicationException, IllegalStateException, IOException {
+
+		if (accessToken == null) {
+
+			throw new OAuthFactoryException(
+					OAuthFactoryException.OAuthExceptionMessages.OAUTH_NOT_AUTHORIZED);
+		}
+
+		StringBuilder requestParamsBuilder;
+
+		switch (requestType) {
+
+		case HTTP_GET:
+
+			HttpGet get = null;
+			requestParamsBuilder = new StringBuilder('?');
+			if (params != null && params.size() > 0) {
+
+				Set<String> keySet = params.keySet();
+				Iterator<String> keyIterator = keySet.iterator();
+				String curKey;
+
+				while (keyIterator.hasNext()) {
+
+					curKey = keyIterator.next();
+
+					requestParamsBuilder.append(curKey).append('=')
+							.append(params.get(curKey));
+
+					requestParamsBuilder.append('&');
+
+				}
+			}
+
+			switch (oAuthConfig.oAuthType) {
+
+			case OAuthTypes.OAUTH_TYPE_1_0_A:
+				if (requestParamsBuilder.lastIndexOf("&") != -1)
+					requestParamsBuilder.deleteCharAt(requestParamsBuilder
+							.length() - 1);
+				get = new HttpGet(requestUrl
+						+ requestParamsBuilder.toString());
+				signHttpRequest(get);
+				break;
+
+			case OAuthTypes.OAUTH_TYPE_2_0:
+
+				requestParamsBuilder.append(oAuthConfig.oAuthToken).append('=')
+						.append(accessToken.getToken());
+
+				get = new HttpGet(requestUrl
+						+ requestParamsBuilder.toString());
+				break;
+			}
+			Log.d(TAG, "Request:" + get.getURI());
+			return httpManager.executeHttpRequestForStringResponse(get);
+
+			
+		case HTTP_POST:
+			
+			HttpPost post = null;
+			
+			List<NameValuePair> postParams = null;
+			
+			if (params != null && params.size() > 0) {
+
+				Set<String> keySet = params.keySet();
+				Iterator<String> keyIterator = keySet.iterator();
+				String curKey;
+				postParams = new ArrayList<NameValuePair>(params.size());
+
+				while (keyIterator.hasNext()) {
+
+					curKey = keyIterator.next();
+					postParams.add(new BasicNameValuePair(curKey, params.getString(curKey)));
+				}
+			}
+
+			switch (oAuthConfig.oAuthType) {
+
+			case OAuthTypes.OAUTH_TYPE_1_0_A:
+				
+				post = new HttpPost(requestUrl);
+				
+				signHttpRequest(post);
+				break;
+
+			case OAuthTypes.OAUTH_TYPE_2_0:
+
+				requestParamsBuilder = new StringBuilder('?');
+				requestParamsBuilder.append(oAuthConfig.oAuthToken).append('=')
+						.append(accessToken.getToken());
+
+				post = new HttpPost(requestUrl
+						+ requestParamsBuilder.toString());
+				
+				break;
+			}
+			
+			post.setEntity(new UrlEncodedFormEntity(postParams));
+			return httpManager.executeHttpRequestForStringResponse(post);
+
+		default:
+			throw new OAuthFactoryException(
+					OAuthFactoryException.OAuthExceptionMessages.UNSUPPORTED_METHOD);
+		}
+		
+	}
+	
+	private static class OAuth2AuthParams {
+		
+		static final String PARAM_KEY_CLIENT_ID = "client_id";
+		
+		static final String PARAM_KEY_REDIRECT_URI = "redirect_uri";
+		
+		static final String PARAM_KEY_RESPONSE_TYPE = "response_type";
+		
+		static final String PARAM_VALUE_RESPONSE_TYPE = "token";
 	}
 }

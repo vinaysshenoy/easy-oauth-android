@@ -1,5 +1,7 @@
 package com.easy.oauth.http;
 
+import com.easy.oauth.factory.OAuthTypes;
+
 import android.os.Bundle;
 
 /**
@@ -15,10 +17,25 @@ public class HttpParamParser {
 	private static final String TOKEN_QUESTION = "\\?";
 
 	private static final String TOKEN_EQUALS = "=";
+	
+	private static final String TOKEN_HASH = "#";
 
-	public static Bundle parseParams(String url) {
+	public static Bundle parseParams(int oAuthType, String url) {
 
-		String[] split = url.split(TOKEN_QUESTION);
+		String[] split = null;
+		
+		switch(oAuthType) {
+		
+		case OAuthTypes.OAUTH_TYPE_1_0_A:
+			split = url.split(TOKEN_QUESTION);
+			
+			break;
+			
+		case OAuthTypes.OAUTH_TYPE_2_0:
+			split = url.split(TOKEN_HASH);
+			break;
+		}
+		
 
 		if (split.length == 2) {
 
@@ -41,7 +58,8 @@ public class HttpParamParser {
 				return params;
 			}
 		}
-
+		
 		return null;
+
 	}
 }
