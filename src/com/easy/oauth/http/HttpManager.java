@@ -32,6 +32,7 @@ public class HttpManager {
 	/**
 	 * Debug tag
 	 */
+	@SuppressWarnings("unused")
 	private static final String TAG = HttpManager.class.getCanonicalName();
 
 	/**
@@ -138,6 +139,12 @@ public class HttpManager {
 		}
 		return null;
 
+	}
+
+	public void destroy() {
+		
+		mHttpClient = null;
+		
 	}
 
 }

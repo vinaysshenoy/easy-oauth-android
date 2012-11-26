@@ -1,15 +1,13 @@
 package com.easy.oauth;
 
-import com.easy.oauth.factory.OAuthFactory;
-import com.easy.oauth.factory.OAuthTypes;
+import com.easy.oauth.factory.FactoryConstants.OAuthType;
+import com.easy.oauth.factory.FactoryConstants;
 import com.easy.oauth.http.HttpParamParser;
 import com.network.oauth.provider.R;
 import android.os.Bundle;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.util.Log;
-import android.view.Menu;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -17,6 +15,7 @@ public class WebActivity extends Activity {
 
 	private WebView webView;
 
+	@SuppressWarnings("unused")
 	private static final String TAG = WebActivity.class.getCanonicalName();
 
 	public static final String KEY_VERIFIER = "oauth_verifier_key";
@@ -39,7 +38,7 @@ public class WebActivity extends Activity {
 
 	private String oAuthToken;
 
-	private int oAuthType;
+	private OAuthType oAuthType;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -50,7 +49,7 @@ public class WebActivity extends Activity {
 		oAuthDenied = getIntent().getStringExtra(KEY_DENIED);
 		callback = getIntent().getStringExtra(KEY_CALLBACK);
 		oAuthToken = getIntent().getStringExtra(KEY_OAUTH_TOKEN);
-		oAuthType = getIntent().getIntExtra(KEY_OAUTH_TYPE, 0);
+		oAuthType = (OAuthType) getIntent().getSerializableExtra(KEY_OAUTH_TYPE);
 
 		webView = (WebView) findViewById(R.id.webView);
 		webView.setWebViewClient(new WebViewClient() {
@@ -62,7 +61,7 @@ public class WebActivity extends Activity {
 
 					switch (oAuthType) {
 
-					case OAuthTypes.OAUTH_TYPE_1_0_A:
+					case OAUTH_1_0_A:
 
 						if (url.contains(oAuthVerifier)) {
 
@@ -72,22 +71,23 @@ public class WebActivity extends Activity {
 
 							if (params != null) {
 								intent.putExtras(params);
-								setResult(OAuthFactory.RESULT_CODE_SUCCESS,
+								setResult(FactoryConstants.SUCCESS,
 										intent);
 							} else {
-								setResult(OAuthFactory.RESULT_CODE_FAILURE);
+								setResult(FactoryConstants.FAILURE);
+								intent = null;
 							}
 							finish();
 						}
 
 						else if (url.contains(oAuthDenied)) {
 
-							setResult(OAuthFactory.RESULT_CODE_FAILURE);
+							setResult(FactoryConstants.FAILURE);
 							finish();
 						}
 						break;
 
-					case OAuthTypes.OAUTH_TYPE_2_0:
+					case OAUTH_2_0:
 
 						if (url.contains(oAuthToken)) {
 
@@ -97,10 +97,10 @@ public class WebActivity extends Activity {
 
 							if (params != null) {
 								intent.putExtras(params);
-								setResult(OAuthFactory.RESULT_CODE_SUCCESS,
+								setResult(FactoryConstants.SUCCESS,
 										intent);
 							} else {
-								setResult(OAuthFactory.RESULT_CODE_FAILURE);
+								setResult(FactoryConstants.FAILURE);
 							}
 							finish();
 						}
@@ -115,12 +115,6 @@ public class WebActivity extends Activity {
 		});
 
 		webView.loadUrl(getIntent().getStringExtra(KEY_ACCESS_TOKEN_URL));
-	}
-
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.activity_web, menu);
-		return true;
 	}
 
 	@Override

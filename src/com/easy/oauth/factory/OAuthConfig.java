@@ -1,5 +1,7 @@
 package com.easy.oauth.factory;
 
+import com.easy.oauth.factory.FactoryConstants.OAuthType;
+import com.easy.oauth.factory.FactoryConstants.Provider;
 import com.easy.oauth.http.HttpConfig;
 
 /**
@@ -11,10 +13,10 @@ import com.easy.oauth.http.HttpConfig;
 public class OAuthConfig {
 
 	/**
-	 * One of the OAUTH_TYPE constants defined in OAuthTypes. Used to determine
+	 * One of the {@link OAuthType} constants. Used to determine
 	 * The request methods signing methodology
 	 */
-	public int oAuthType;
+	public OAuthType oAuthType;
 
 	/**
 	 * Endpoint for fetching request tokens
@@ -52,14 +54,21 @@ public class OAuthConfig {
 	public String oAuthDenied;
 	
 	/**
-	 * The key used to append the access token when making http requests, OAuth 2.0 only, default "oauth_token"
-	 * You can ignore this parameter if you will be making the API requests yourself
+	 * The key used to fetch the access token and append the access token, OAuth 2.0 only, default "oauth_token"
+	 * 
 	 */
 	public String oAuthToken;
+	
+	/**
+	 * Custom OAuthParams - An array of non-url encoded strings containing the OAuth Params, 
+	 * each string must be of the form "key=value"
+	 * 
+	 */
+	public String[] customOAuthParams;
 
 	/**
 	 * @param oAuthType
-	 *            decides the OAuth type. Must be one of the OAuthType constants
+	 *            decides the OAuth type. Must be one of the {@link OAuthType}} constants
 	 * @param requestTokenEndpointUrl
 	 *            The endpoint for fetching request tokens for the first step of
 	 *            OAuth sign in, cannot be null for Oauth 1.0a
@@ -71,7 +80,7 @@ public class OAuthConfig {
 	 * @throws OAuthFactoryException
 	 * @throws NullPointerException
 	 */
-	public OAuthConfig(int oAuthType, String requestTokenEndpointUrl,
+	public OAuthConfig(OAuthType oAuthType, String requestTokenEndpointUrl,
 			String accessTokenEndpointUrl, String authorizationWebsiteUrl)
 			throws OAuthFactoryException, NullPointerException {
 
@@ -82,7 +91,7 @@ public class OAuthConfig {
 
 		switch (this.oAuthType) {
 
-		case OAuthTypes.OAUTH_TYPE_1_0_A:
+		case OAUTH_1_0_A:
 
 			//All three URLs are needed
 			if (requestTokenEndpointUrl == null
@@ -93,7 +102,7 @@ public class OAuthConfig {
 			}
 			break;
 
-		case OAuthTypes.OAUTH_TYPE_2_0:
+		case OAUTH_2_0:
 			//Only authorizationWebsiteUrl is needed
 			if(authorizationWebsiteUrl == null) {
 				throw new NullPointerException(OAuthFactoryException.OAuthExceptionMessages.OAUTH_NULL_AUTHORIZATION_URL);
@@ -110,6 +119,7 @@ public class OAuthConfig {
 		oAuthVerifier = OAuthConfigDefaults.DEFAULT_OAUTH_VERIFIER;
 		oAuthDenied = OAuthConfigDefaults.DEFAULT_OAUTH_DENIED;
 		oAuthToken = OAuthConfigDefaults.DEFAULT_OAUTH_TOKEN;
+		customOAuthParams = null;
 
 	}
 	
@@ -118,6 +128,28 @@ public class OAuthConfig {
 		public static final String DEFAULT_OAUTH_VERIFIER = "oauth_verifier";
 		public static final String DEFAULT_OAUTH_DENIED = "denied";
 		public static final String DEFAULT_OAUTH_TOKEN = "oauth_token";
+	}
+
+	static OAuthConfig getConfigFor(Provider provider) throws NullPointerException, OAuthFactoryException {
+		
+		OAuthConfig config = null;
+		
+		switch(provider) {
+		
+		case FACEBOOK:
+			config = new OAuthConfig(OAuthType.OAUTH_2_0, null, null, "https://www.facebook.com/dialog/oauth");
+			break;
+			
+		case TWITTER:
+			config = new OAuthConfig(OAuthType.OAUTH_1_0_A, "https://api.twitter.com/oauth/request_token", "https://api.twitter.com/oauth/access_token", "https://api.twitter.com/oauth/authorize");
+			break;
+			
+		default:
+			break;
+		}
+		
+		return config;
+		
 	}
 
 }
