@@ -71,7 +71,13 @@ Twitter Connectivity
     twitterFactory.authorize(REQUEST_CODE);
 ```
 
-Retrieving the access token is done in exactly the same way as for Facebook.
+Retrieving the access token is done in exactly the same way as for Facebook. After connecting to Twiiter, you can use the same twitterFactory instance to sign any HttpRequests as follows:
+
+```java
+    HttpGet get = new HttpGet("SOME_URL_THAT_NEEDS_SIGNING");
+    
+    twitterFactory.signHttpRequest(get);
+```
 
 Using a custom OAuth Provider
 =============================
