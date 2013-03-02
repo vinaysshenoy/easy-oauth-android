@@ -1,6 +1,7 @@
-package com.easy.oauth.http;
+package com.vinaysshenoy.easyoauth.http;
 
-import com.easy.oauth.factory.FactoryConstants.OAuthType;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.OAuthType;
+
 import android.os.Bundle;
 
 /**

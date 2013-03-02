@@ -1,4 +1,4 @@
-package com.easy.oauth.utils;
+package com.vinaysshenoy.easyoauth.utils;
 
 import android.util.Log;
 

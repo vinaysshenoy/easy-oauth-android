@@ -1,15 +1,19 @@
-package com.easy.oauth;
+package com.vinaysshenoy.easyoauth;
 
-import com.easy.oauth.factory.FactoryConstants.OAuthType;
-import com.easy.oauth.factory.FactoryConstants;
-import com.easy.oauth.http.HttpParamParser;
-import com.network.oauth.provider.R;
+import com.vinaysshenoy.easyoauth.R;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.OAuthType;
+import com.vinaysshenoy.easyoauth.http.HttpParamParser;
+import com.vinaysshenoy.easyoauth.utils.Logger;
+
 import android.os.Bundle;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.widget.FrameLayout.LayoutParams;
 
 public class WebActivity extends Activity {
 
@@ -39,11 +43,23 @@ public class WebActivity extends Activity {
 	private String oAuthToken;
 
 	private OAuthType oAuthType;
+	
+	private FrameLayout webLayout;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_web);
+		
+		webLayout = (FrameLayout) findViewById(R.id.webView);
+		
+		webView = new WebView(WebActivity.this);
+		
+		FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+		webView.setLayoutParams(layoutParams);
+		webView.getSettings().setJavaScriptEnabled(true);
+		
+		webLayout.addView(webView);
 
 		oAuthVerifier = getIntent().getStringExtra(KEY_VERIFIER);
 		oAuthDenied = getIntent().getStringExtra(KEY_DENIED);
@@ -51,12 +67,12 @@ public class WebActivity extends Activity {
 		oAuthToken = getIntent().getStringExtra(KEY_OAUTH_TOKEN);
 		oAuthType = (OAuthType) getIntent().getSerializableExtra(KEY_OAUTH_TYPE);
 
-		webView = (WebView) findViewById(R.id.webView);
 		webView.setWebViewClient(new WebViewClient() {
 
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
-
+				
+				Logger.d(TAG, "Url:" + url);
 				if (url.startsWith(callback)) {
 
 					switch (oAuthType) {
@@ -121,6 +137,7 @@ public class WebActivity extends Activity {
 	protected void onDestroy() {
 
 		webView.removeAllViews();
+		webView = null;
 		super.onDestroy();
 	}
 }

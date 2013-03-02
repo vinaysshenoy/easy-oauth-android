@@ -1,4 +1,4 @@
-package com.easy.oauth.http;
+package com.vinaysshenoy.easyoauth.http;
 
 import java.io.BufferedReader;
 import java.io.IOException;

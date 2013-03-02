@@ -1,4 +1,4 @@
-package com.easy.oauth.factory;
+package com.vinaysshenoy.easyoauth.factory;
 
 /**
  * Class that holds some OAuth Constants

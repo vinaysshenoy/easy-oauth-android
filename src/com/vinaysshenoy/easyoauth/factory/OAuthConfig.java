@@ -1,8 +1,8 @@
-package com.easy.oauth.factory;
+package com.vinaysshenoy.easyoauth.factory;
 
-import com.easy.oauth.factory.FactoryConstants.OAuthType;
-import com.easy.oauth.factory.FactoryConstants.Provider;
-import com.easy.oauth.http.HttpConfig;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.OAuthType;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.Provider;
+import com.vinaysshenoy.easyoauth.http.HttpConfig;
 
 /**
  * Class for OAuth configuration
@@ -138,6 +138,7 @@ public class OAuthConfig {
 		
 		case FACEBOOK:
 			config = new OAuthConfig(OAuthType.OAUTH_2_0, null, null, "https://www.facebook.com/dialog/oauth");
+			config.oAuthToken="access_token";
 			break;
 			
 		case TWITTER:

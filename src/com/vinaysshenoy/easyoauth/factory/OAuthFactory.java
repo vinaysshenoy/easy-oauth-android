@@ -1,7 +1,8 @@
-package com.easy.oauth.factory;
+package com.vinaysshenoy.easyoauth.factory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -22,11 +23,13 @@ import oauth.signpost.exception.OAuthNotAuthorizedException;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import com.easy.oauth.WebActivity;
-import com.easy.oauth.factory.FactoryConstants.HttpRequestTypes;
-import com.easy.oauth.factory.FactoryConstants.OAuthType;
-import com.easy.oauth.factory.FactoryConstants.Provider;
-import com.easy.oauth.http.HttpManager;
+
+import com.vinaysshenoy.easyoauth.WebActivity;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.HttpRequestTypes;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.OAuthType;
+import com.vinaysshenoy.easyoauth.factory.FactoryConstants.Provider;
+import com.vinaysshenoy.easyoauth.http.HttpManager;
+import com.vinaysshenoy.easyoauth.utils.Logger;
 
 /**
  * Class for generating OAuthFactory of a particular type
@@ -73,7 +76,7 @@ public class OAuthFactory {
 	/**
 	 * Activity
 	 */
-	private Activity activity;
+	private WeakReference<Activity> activity;
 
 	/**
 	 * HttpManager for making Http Requests
@@ -96,18 +99,22 @@ public class OAuthFactory {
 	 */
 	public OAuthFactory(Activity activity, String consumerKey,
 			String consumerSecret, Provider provider,
-			OAuthConfig oAuthConfig) throws OAuthFactoryException,
+			OAuthConfig oAuthConfig, String oauthCallback) throws OAuthFactoryException,
 			NullPointerException {
 
-		this.activity = activity;
+		this.activity = new WeakReference<Activity>(activity);
 		this.consumerKey = consumerKey;
 		this.consumerSecret = consumerSecret;
 		this.provider = provider;
 		this.oAuthConfig = oAuthConfig;
-
+		
+		if(oAuthConfig == null && provider == Provider.CUSTOM) {
+			throw new NullPointerException(OAuthFactoryException.OAuthExceptionMessages.OAUTH_MISSING_CONFIG);
+		}
+		
 		// Init objects
+		initOAuthProvider(oauthCallback);
 		initOAuthConsumer();
-		initOAuthProvider();
 		initHttpManager();
 	}
 
@@ -127,9 +134,9 @@ public class OAuthFactory {
 
 	}
 
-	private void initOAuthProvider() throws OAuthFactoryException {
+	private void initOAuthProvider(String oauthCallback) throws OAuthFactoryException {
 
-		if(oAuthConfig.oAuthType == OAuthType.OAUTH_2_0)
+		if(oAuthConfig != null && oAuthConfig.oAuthType == OAuthType.OAUTH_2_0)
 			return;
 		
 		switch (provider) {
@@ -147,6 +154,7 @@ public class OAuthFactory {
 
 			if (oAuthConfig == null) {
 				oAuthConfig = OAuthConfig.getConfigFor(Provider.FACEBOOK);
+				oAuthConfig.callbackUrl = oauthCallback;
 			}
 
 			break;
@@ -155,6 +163,7 @@ public class OAuthFactory {
 
 			if (oAuthConfig == null) {
 				oAuthConfig = OAuthConfig.getConfigFor(provider);
+				oAuthConfig.callbackUrl = oauthCallback;
 			}
 			break;
 
@@ -163,10 +172,13 @@ public class OAuthFactory {
 					OAuthFactoryException.OAuthExceptionMessages.OAUTH_UNRECOGNIZED_PROVIDER);
 		}
 
-		oAuthProvider = new CommonsHttpOAuthProvider(
-				oAuthConfig.requestTokenEndpointUrl,
-				oAuthConfig.accessTokenEndpointUrl,
-				oAuthConfig.authorizationWebsiteUrl);
+		if(oAuthConfig.oAuthType == OAuthType.OAUTH_1_0_A) {
+			oAuthProvider = new CommonsHttpOAuthProvider(
+					oAuthConfig.requestTokenEndpointUrl,
+					oAuthConfig.accessTokenEndpointUrl,
+					oAuthConfig.authorizationWebsiteUrl);
+		}
+		
 	}
 
 	private void initHttpManager() {
@@ -206,14 +218,14 @@ public class OAuthFactory {
 			break;
 		}
 
-		Intent intent = new Intent(activity, WebActivity.class);
+		Intent intent = new Intent(activity.get(), WebActivity.class);
 		intent.putExtra(WebActivity.KEY_ACCESS_TOKEN_URL, url);
 		intent.putExtra(WebActivity.KEY_CALLBACK, oAuthConfig.callbackUrl);
 		intent.putExtra(WebActivity.KEY_DENIED, oAuthConfig.oAuthDenied);
 		intent.putExtra(WebActivity.KEY_VERIFIER, oAuthConfig.oAuthVerifier);
 		intent.putExtra(WebActivity.KEY_OAUTH_TOKEN, oAuthConfig.oAuthToken);
 		intent.putExtra(WebActivity.KEY_OAUTH_TYPE, oAuthConfig.oAuthType);
-		activity.startActivityForResult(intent, requestCode);
+		activity.get().startActivityForResult(intent, requestCode);
 	}
 
 	/**
@@ -226,14 +238,16 @@ public class OAuthFactory {
 	private void appendExtraParamsToAuthUrl(StringBuilder urlBuilder,
 			String[] customOAuthParams) {
 		
-		if(customOAuthParams == null || customOAuthParams.length == 0)
+		if(customOAuthParams == null || customOAuthParams.length == 0) {
+			Logger.d(TAG, "No OAuth Params");
 			return;
+		}
 		
 		for(String param : customOAuthParams) {
 			
 			urlBuilder
 				.append('&')
-				.append(URLEncoder.encode(param));
+				.append(param);
 		}
 		
 	}
@@ -254,8 +268,7 @@ public class OAuthFactory {
 		switch (oAuthConfig.oAuthType) {
 
 		case OAUTH_1_0_A:
-			oAuthProvider.retrieveAccessToken(oAuthConsumer, args.getString(oAuthConfig.oAuthVerifier),
-					oAuthConfig.customOAuthParams);
+			oAuthProvider.retrieveAccessToken(oAuthConsumer, args.getString(oAuthConfig.oAuthVerifier));
 			accessToken = new AccessToken(oAuthConsumer.getToken(),
 					oAuthConsumer.getTokenSecret());
 			break;
@@ -543,5 +556,15 @@ public class OAuthFactory {
 		static final String PARAM_KEY_RESPONSE_TYPE = "response_type";
 		
 		static final String PARAM_VALUE_RESPONSE_TYPE = "token";
+	}
+	
+	public OAuthConfig getOAuthConfig() {
+		
+		return oAuthConfig;
+	}
+	
+	public void setDebugMode(boolean debugMode) {
+		
+		Logger.setDebugMode(debugMode);
 	}
 }
